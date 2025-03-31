@@ -6,48 +6,46 @@ import { Button, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ScreenOrientation from "expo-screen-orientation";
 import Game from "./app/screens/Game";
+import { AuthProvider, useAuth } from "./app/context/AuthContext";
+import Login from "./app/screens/Login";
+import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [inGame, setInGame] = useState(false);
-
-  const Menu = () => {
-    useEffect(() => {
-      // Lock to portrait orientation
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
-    }, []);
-
-    return (
-      <SafeAreaView>
-        <SafeAreaView>
-          <StatusBar hidden={true} />
-          <Text>Page content</Text>
-          <Button onPress={() => setInGame(true)} title="Play game"></Button>
-        </SafeAreaView>
-      </SafeAreaView>
-    );
-  };
+  const [fontsLoaded] = useFonts({ Kanit_900Black });
 
   const Layout = () => {
+    const { authState } = useAuth();
+
     return (
       <NavigationContainer>
         <Stack.Navigator>
-          {inGame ? (
+          {authState?.authenticated ? (
             <Stack.Screen
               name="Game"
               component={Game}
               options={{
                 headerShown: false,
               }}
-            ></Stack.Screen>
+            />
           ) : (
-            <Stack.Screen name="Menu" component={Menu}></Stack.Screen>
+            <Stack.Screen
+              name="Login"
+              component={Login}
+              options={{
+                headerShown: false,
+              }}
+            />
           )}
         </Stack.Navigator>
       </NavigationContainer>
     );
   };
 
-  return <Layout></Layout>;
+  return (
+    <AuthProvider>
+      <Layout/>
+    </AuthProvider>
+  );
 }

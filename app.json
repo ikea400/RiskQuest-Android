@@ -31,7 +31,8 @@
         {
           "initialOrientation": "portrait"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
