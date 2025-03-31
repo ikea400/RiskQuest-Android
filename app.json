@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "tutoAuth",
-    "slug": "tutoAuth",
+    "name": "RiskQuest",
+    "slug": "RiskQuest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,7 +25,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "portrait"
+        }
+      ]
     ]
   }
 }
