@@ -3,7 +3,14 @@ import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 
 interface AuthProps {
-  authState?: { token?: string; authenticated?: boolean; bot?: boolean };
+  authState?: {
+    token?: string;
+    authenticated?: boolean;
+    bot?: boolean;
+    username?: string;
+    
+    userId?: number;
+  };
   onRegister?: (username: string, password: string) => Promise<any>;
   onLogin?: (username: string, password: string) => Promise<any>;
   onGuest?: () => Promise<any>;
