@@ -9,6 +9,7 @@ import Game from "./app/screens/Game";
 import { AuthProvider, useAuth } from "./app/context/AuthContext";
 import Login from "./app/screens/Login";
 import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
+import Menu from "./app/screens/Menu";
 
 const Stack = createNativeStackNavigator();
 
@@ -24,14 +25,14 @@ export default function App() {
           {authState?.authenticated ? (
             <Stack.Screen
               name="Game"
-              component={Game}
+              component={Menu}
               options={{
                 headerShown: false,
               }}
             />
           ) : (
             <Stack.Screen
-              name="Login"
+              name="Menu"
               component={Login}
               options={{
                 headerShown: false,
