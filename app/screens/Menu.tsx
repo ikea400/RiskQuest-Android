@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Button, StyleSheet, Text, TextInput, View } from "react-native";
+import { Button, StyleSheet, Text, TextInput, View, TouchableOpacity, ScrollView } from "react-native";
 import Game from "./Game";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../config/color";
+import React from "react"; 
+import axios  from "axios";
 
 const MenuPage = () => {
   const [games, setGames] = useState<string[]>([]);
@@ -13,16 +15,18 @@ const MenuPage = () => {
       <Text>RiskQuest: List of games</Text>
       {games.length === 0 ? (
         <View style={styles.listPlaceHolder}>
-          <Text>No game were gound</Text>
+          <Text>No game were found</Text>
         </View>
       ) : (
-        <View style={styles.list}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {games.map((game, index) => (
-            <Text key={index}>{game}</Text>
+            <TouchableOpacity key={index} style={styles.itemContainer}>
+              <Text key={index} style={styles.itemText}>{game}</Text>
+            </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
-      <Text>Don't find your game? Enter the game id here</Text>
+      <Text>Can't find your game? Enter the game id here</Text>
       <View style={styles.form}>
         <TextInput
           style={styles.input}
@@ -35,7 +39,7 @@ const MenuPage = () => {
           title={"Submit"}
           onPress={() => {
             setGames([gameId, ...games]);
-            setGameId("");
+            setGameId("game id, date, player count ");
           }}
         />
       </View>
@@ -51,6 +55,7 @@ const Menu = () => {
 
 export default Menu;
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -65,11 +70,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "80%",
   },
-  list: {
+  scrollView: {
     flex: 1,
-    backgroundColor: "#f0f0f0",
-    alignItems: "center",
-    width: "80%",
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
   },
   input: {
     height: 44,
@@ -82,4 +89,24 @@ const styles = StyleSheet.create({
     gap: 10,
     width: "80%",
   },
+  itemContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 0.5,
+    borderColor: '#E0E6F0',
+  },
+
+  itemText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '500',
+  }
 });
