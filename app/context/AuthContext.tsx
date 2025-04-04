@@ -8,7 +8,6 @@ interface AuthProps {
     authenticated?: boolean;
     bot?: boolean;
     username?: string;
-    
     userId?: number;
   };
   onRegister?: (username: string, password: string) => Promise<any>;
@@ -29,6 +28,8 @@ export const AuthProvider = ({ children }: any) => {
     token?: string;
     authenticated?: boolean;
     bot?: boolean;
+    username?: string;
+    userId?: number;
   }>();
 
   useEffect(() => {
@@ -52,6 +53,8 @@ export const AuthProvider = ({ children }: any) => {
           setAuthState({
             token: token,
             authenticated: true,
+            username: payload?.username,
+            userId: payload?.id,
           });
 
           axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -91,6 +94,8 @@ export const AuthProvider = ({ children }: any) => {
           token: response.token,
           authenticated: true,
           bot: false,
+          username,
+          userId: response.id,
         });
 
         axios.defaults.headers.common[
@@ -121,6 +126,8 @@ export const AuthProvider = ({ children }: any) => {
           token: response.token,
           authenticated: true,
           bot: true,
+          username: response.name,
+          userId: response.id,
         });
 
         axios.defaults.headers.common[
@@ -151,6 +158,8 @@ export const AuthProvider = ({ children }: any) => {
       token: undefined,
       authenticated: false,
       bot: undefined,
+      username: undefined,
+      userId: undefined,
     });
   };
 
