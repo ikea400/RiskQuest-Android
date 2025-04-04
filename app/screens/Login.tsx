@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   StyleSheet,
@@ -11,6 +11,8 @@ import {
 import { Colors } from "../config/color";
 import OutlinedText from "../components/OutlineText";
 import { useAuth } from "../context/AuthContext";
+import { arrayEquals } from "../utililty/utils";
+import * as ScreenOrientation from "expo-screen-orientation";
 
 function verifyPassword(password: string, confirmPassword?: string): string[] {
   const errors = [];
@@ -57,18 +59,6 @@ function verifyUsername(username: string): string[] {
   }
 
   return errors;
-}
-
-function arrayEquals(a1: any[], a2: any[]) {
-  if (a1.length !== a2.length) {
-    return false;
-  }
-
-  let i = a1.length;
-  while (i--) {
-    if (a1[i] !== a2[i]) return false;
-  }
-  return true;
 }
 
 const RegisterPage = ({
@@ -282,7 +272,9 @@ const LoginPage = ({
             <Text style={styles.textBtn}>Signup</Text>
           </TouchableHighlight>
         </View>
-        <TouchableHighlight style={styles.guestBox} onPress={async() => {
+        <TouchableHighlight
+          style={styles.guestBox}
+          onPress={async () => {
             const response = await onGuest!();
             if (response?.success !== true) {
               setErrors(
@@ -293,7 +285,8 @@ const LoginPage = ({
                   : ["Unknown error"]
               );
             }
-        }}>
+          }}
+        >
           <Text style={styles.textBtn}>Continue as a guest</Text>
         </TouchableHighlight>
       </View>
@@ -305,6 +298,11 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [register, setRegister] = useState(false);
+
+  useEffect(() => {
+    // Lock to portrait orientation
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+  }, []);
 
   return (
     <SafeAreaView>

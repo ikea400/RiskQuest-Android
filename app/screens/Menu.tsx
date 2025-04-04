@@ -1,12 +1,55 @@
-import { useState } from "react";
-import { Button, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Button,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableHighlight,
+  View,
+} from "react-native";
 import Game from "./Game";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../config/color";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+import { arrayEquals } from "../utililty/utils";
+import * as ScreenOrientation from "expo-screen-orientation";
 
-const MenuPage = () => {
+const MenuPage = ({
+  setOpenGameId,
+}: {
+  setOpenGameId: (value: string) => void;
+}) => {
   const [games, setGames] = useState<string[]>([]);
   const [gameId, setGameId] = useState<string>("");
+  const { authState } = useAuth();
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL;
+      const API_ENDPOINT = `${API_URL}/games/${authState?.userId}`;
+      try {
+        const result = await axios.get(API_ENDPOINT);
+        const response = result.data;
+        if (response?.success === true && Array.isArray(response?.games)) {
+          if (!arrayEquals(response.games, games)) {
+            setGames(response.games);
+          }
+          console.log(`Fetched [${response.games}] from server`);
+        }
+        console.log("Failed to fetch games fo server for unknown reason");
+        console.log(response);
+      } catch (error: any) {
+        console.log("Failed to fetch games fo server", error);
+      }
+    };
+    if (authState?.bot !== true) {
+      fetchGames();
+    }
+
+    // Lock to portrait orientation
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -18,7 +61,9 @@ const MenuPage = () => {
       ) : (
         <View style={styles.list}>
           {games.map((game, index) => (
-            <Text key={index}>{game}</Text>
+            <TouchableHighlight onPress={() => setOpenGameId(game)}>
+              <Text key={index}>{game}</Text>
+            </TouchableHighlight>
           ))}
         </View>
       )}
@@ -34,7 +79,9 @@ const MenuPage = () => {
           color={Colors.mainButton}
           title={"Submit"}
           onPress={() => {
-            setGames([gameId, ...games]);
+            if (gameId.length > 0) {
+              setOpenGameId(gameId);
+            }
             setGameId("");
           }}
         />
@@ -46,7 +93,7 @@ const MenuPage = () => {
 const Menu = () => {
   const [openGameId, setOpenGameId] = useState<string | undefined>();
 
-  return openGameId ? <Game /> : <MenuPage />;
+  return openGameId ? <Game /> : <MenuPage setOpenGameId={setOpenGameId} />;
 };
 
 export default Menu;
