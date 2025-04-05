@@ -14,17 +14,31 @@ const MenuPage = ({
 }: {
   setOpenGameId: (value: string) => void;
 }) => {
-  const [games, setGames] = useState<string[]>([]);
+  const [games, setGames] = useState<gameInfo[]>([]);
   const [gameId, setGameId] = useState<string>("");
   const { authState } = useAuth();
+
+  interface gameInfo {
+    finished: string;
+    id: string;
+    played_time: string;
+    player_count: string;
+    start_date: string;
+  }
 
   useEffect(() => {
     const fetchGames = async () => {
       const API_URL = process.env.EXPO_PUBLIC_API_URL;
       const API_ENDPOINT = `${API_URL}/games/${authState?.userId}`;
-      try {
-        const result = await axios.get(API_ENDPOINT);
+        const result = await axios.get(API_ENDPOINT, {
+          withCredentials: true,  // Ensure cookies/auth headers are sent if needed
+          headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+          }
+        });
         const response = result.data;
+        console.log(response.error);
         if (response?.success === true && Array.isArray(response?.games)) {
           if (!arrayEquals(response.games, games)) {
             setGames(response.games);
@@ -33,9 +47,7 @@ const MenuPage = ({
         }
         console.log("Failed to fetch games fo server for unknown reason");
         console.log(response);
-      } catch (error: any) {
-        console.log("Failed to fetch games fo server", error);
-      }
+      
     };
     if (authState?.bot !== true) {
       fetchGames();
@@ -55,8 +67,8 @@ const MenuPage = ({
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {games.map((game, index) => (
-            <TouchableOpacity key={index} style={styles.itemContainer} onPress={() => setOpenGameId(game)}>
-              <Text key={index} style={styles.itemText}>{game}</Text>
+            <TouchableOpacity key={index} style={styles.itemContainer} onPress={() => setOpenGameId(game.id)}>
+              <Text key={index} style={styles.itemText}>{`${game.id} finished:${game.finished} ${game.start_date}` }</Text>
             </TouchableOpacity>
             
           ))}

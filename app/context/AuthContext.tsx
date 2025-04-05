@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }: any) => {
         setAuthState({
           token: response.token,
           authenticated: true,
-          bot: true,
+          bot: false,
           username: response.name,
           userId: response.id,
         });
@@ -133,6 +133,7 @@ export const AuthProvider = ({ children }: any) => {
         axios.defaults.headers.common[
           "Authorization"
         ] = `Bearer ${response.token}`;
+        console.log(axios.defaults.headers.common);
       }
 
       return response;
