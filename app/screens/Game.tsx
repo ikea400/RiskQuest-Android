@@ -5,6 +5,7 @@ import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
 import { Colors } from "../config/color";
 import { StatusBar } from "expo-status-bar";
 import FullScreenComponent from "../components/FullScreen";
+import axios from "axios";
 
 function randomInteger(min: number, max: number): number {
   let randomNumber = Math.random();
@@ -491,26 +492,56 @@ const territoirePaths: {
   },
 ];
 
-const Game = () => {
-  const buildGameTerritoires = () => {
-    const obj: any = {};
-    for (const territoire of territoirePaths) {
-      obj[territoire.id] = {
-        playerId: randomInteger(1, 6),
-        troops: randomInteger(1, 100),
-      };
-    }
-    return obj;
-  };
-  const [gameTerritoires, setGameTerritoires] = useState(
-    buildGameTerritoires()
-  );
+const buildGameTerritoires = () => {
+  const obj: any = {};
+  for (const territoire of territoirePaths) {
+    obj[territoire.id] = {
+      playerId: randomInteger(1, 6),
+      troops: randomInteger(1, 100),
+    };
+  }
+  return obj;
+};
+
+const Game = ({ gameId }: { gameId: string }) => {
+  const [moves, setMoves] = useState<any>(null);
+  // const [gameTerritoires, setGameTerritoires] = useState(
+  //   buildGameTerritoires()
+  // );
+
+  const [currentMove, setCurrentMove] = useState<number>(0);
 
   useEffect(() => {
     // Lock to lanscape orientation
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+
+    const fetchMoves = async () => {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL;
+      const API_ENDPOINT = `${API_URL}/moves/${gameId}`;
+      try {
+        const result = await axios.get(API_ENDPOINT);
+        const response = result.data;
+        if (response?.success === true && Array.isArray(response?.moves)) {
+          console.log("Fetched moves from server", response.moves);
+
+          const moves = response.moves;
+          for (const move of moves) {
+            move.moveData = JSON.parse(move.moveData);
+          }
+
+          setMoves(moves);
+          setCurrentMove(0);
+        } else {
+          console.log("Failed to fetch moves fo server for unknown reason");
+        }
+      } catch (error: any) {
+        console.log("Failed to fetch moves fo server", error);
+      }
+    };
+    console.log(gameId);
+    fetchMoves();
   }, []);
-  const inputRef = useRef(null);
+
   return (
     <FullScreenComponent>
       <Svg height="100%" width="100%" viewBox="40 60 125 130">
@@ -521,7 +552,10 @@ const Game = () => {
               key={territoire.id}
               fill={
                 Colors.playersTerritoire[
-                  gameTerritoires[territoire.id].playerId
+                  moves == null
+                    ? 0
+                    : moves[currentMove].moveData.territories[territoire.id]
+                        .playerId
                 ]
               }
             />
@@ -537,7 +571,10 @@ const Game = () => {
               r={4.5}
               fill={
                 Colors.playersBackground[
-                  gameTerritoires[territoire.id].playerId
+                  moves == null
+                    ? 0
+                    : moves[currentMove].moveData.territories[territoire.id]
+                        .playerId
                 ]
               }
               key={`pastille-${territoire.id}`}
@@ -554,13 +591,15 @@ const Game = () => {
               textAnchor={"middle"}
               alignmentBaseline={"middle"}
               fontFamily={"Kanit_900Black"}
-              fontSize={80}
-              strokeWidth={7}
+              fontSize={4}
+              strokeWidth={0.35}
               fill={"white"}
               stroke={"black"}
               key={`text-${territoire.id}`}
             >
-              {gameTerritoires[territoire.id].troops}
+              {moves == null
+                ? 0
+                : moves[currentMove].moveData.territories[territoire.id].troops}
             </SvgText>
           </G>
         ))}

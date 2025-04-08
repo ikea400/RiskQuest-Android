@@ -93,7 +93,11 @@ const MenuPage = ({
 const Menu = () => {
   const [openGameId, setOpenGameId] = useState<string | undefined>();
 
-  return openGameId ? <Game /> : <MenuPage setOpenGameId={setOpenGameId} />;
+  return openGameId ? (
+    <Game gameId={openGameId} />
+  ) : (
+    <MenuPage setOpenGameId={setOpenGameId} />
+  );
 };
 
 export default Menu;
