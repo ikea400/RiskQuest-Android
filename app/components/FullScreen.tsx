@@ -4,7 +4,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { useEffect } from "react";
 
 // Credits: https://stackoverflow.com/a/77030465
-const FullScreenComponent = ({ children }: any) => {
+const FullScreenComponent = ({ children, style}: any) => {
   // Hide bottom bar
   const hideNavBar = async () => {
     // Prevent content from moving up when bar is shown
@@ -37,7 +37,7 @@ const FullScreenComponent = ({ children }: any) => {
     };
   }, []);
   return (
-    <View>
+    <View style={style}>
       <StatusBar hidden={true} />
       {children}
     </View>
