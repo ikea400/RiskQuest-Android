@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { View, Text, Button, StyleSheet } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
@@ -542,9 +542,10 @@ const Game = ({ gameId }: { gameId: string }) => {
     fetchMoves();
   }, []);
 
+
   return (
-    <FullScreenComponent>
-      <Svg height="100%" width="100%" viewBox="40 60 125 130">
+    <FullScreenComponent style={styles.container}>
+      <Svg style={styles.game} viewBox="40 60 125 130">
         {territoirePaths.map((territoire) => (
           <G key={`group-${territoire.id}`}>
             <Path
@@ -604,8 +605,28 @@ const Game = ({ gameId }: { gameId: string }) => {
           </G>
         ))}
       </Svg>
+      <Button
+        title="Next"
+        color="#841584"
+        onPress={() => {
+          setCurrentMove(Math.min(currentMove + 1, moves.length - 1));
+        }}
+      />
     </FullScreenComponent>
   );
 };
 
 export default Game;
+
+const styles = StyleSheet.create({
+  container: {
+    // Corrected the typo here
+    flexDirection: "row",
+    height: "100%",
+  },
+  game: {
+    flex: 1,
+    height: "100%",
+  },
+  button: {},
+});
