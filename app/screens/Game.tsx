@@ -542,7 +542,6 @@ const Game = ({ gameId }: { gameId: string }) => {
     fetchMoves();
   }, []);
 
-
   return (
     <FullScreenComponent style={styles.container}>
       <Svg style={styles.game} viewBox="40 60 125 130">
@@ -606,7 +605,7 @@ const Game = ({ gameId }: { gameId: string }) => {
         ))}
       </Svg>
       <Button
-        title="Next"
+        title={`Next ${currentMove}/ ${moves ? moves.length - 1 : undefined}`}
         color="#841584"
         onPress={() => {
           setCurrentMove(Math.min(currentMove + 1, moves.length - 1));
