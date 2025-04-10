@@ -1,5 +1,5 @@
 import { useState, useEffect} from "react";
-import { Button, StyleSheet, Text, TextInput, View, TouchableOpacity, ScrollView } from "react-native";
+import { Button, StyleSheet, Text, TextInput, View, TouchableOpacity, ScrollView, Pressable } from "react-native";
 import Game from "./Game";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../config/color";
@@ -82,16 +82,16 @@ const MenuPage = ({
           value={gameId}
           onChangeText={setGameId}
         />
-        <Button
-          color={Colors.mainButton}
-          title={"Submit"}
+        <TouchableOpacity style={styles.submitButton}
           onPress={() => {
             if (gameId.length > 0) {
               setOpenGameId(gameId);
             }
             setGameId("");
           }}
-        />
+          >
+          <Text style={styles.buttonText}>Submit</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 0.5,
@@ -158,5 +158,25 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 16,
     fontWeight: '500',
-  }
+  },
+  submitButton: {
+    alignItems: "center",
+    backgroundColor: Colors.mainButton,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 0.5,
+    borderColor: '#6f9149',
+    
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });
