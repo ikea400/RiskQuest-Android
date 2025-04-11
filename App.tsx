@@ -11,17 +11,22 @@ import Login from "./app/screens/Login";
 import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
 import Menu from "./app/screens/Menu";
 
-const Stack = createNativeStackNavigator();
+export type NavigationProps = {
+  Menu: undefined;
+  Game: undefined;
+}
+
+export const Stack = createNativeStackNavigator<NavigationProps>();
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Kanit_900Black });
 
   const Layout = () => {
     const { authState } = useAuth();
-
+    
     return (
       <NavigationContainer>
-        <Stack.Navigator>
+        <Stack.Navigator initialRouteName={"Menu"}>
           {authState?.authenticated ? (
             <Stack.Screen
               name="Game"
@@ -30,12 +35,14 @@ export default function App() {
                 headerShown: false,
               }}
             />
+            
           ) : (
             <Stack.Screen
               name="Menu"
               component={Login}
               options={{
                 headerShown: false,
+                
               }}
             />
           )}

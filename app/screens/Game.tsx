@@ -1,8 +1,9 @@
-import { View, Text, Button, StyleSheet } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Button, StyleSheet, TouchableOpacity } from "react-native";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
 import { Colors } from "../config/color";
+import MenuPage from "./Menu";
 import { StatusBar } from "expo-status-bar";
 import FullScreenComponent from "../components/FullScreen";
 import axios from "axios";
@@ -503,13 +504,15 @@ const buildGameTerritoires = () => {
   return obj;
 };
 
-const Game = ({ gameId }: { gameId: string }) => {
+const Game = ({ gameId, returnMenu }: { gameId: string, returnMenu: () => void}) => {
   const [moves, setMoves] = useState<any>(null);
   // const [gameTerritoires, setGameTerritoires] = useState(
   //   buildGameTerritoires()
   // );
 
   const [currentMove, setCurrentMove] = useState<number>(0);
+
+ 
 
   useEffect(() => {
     // Lock to lanscape orientation
@@ -523,7 +526,7 @@ const Game = ({ gameId }: { gameId: string }) => {
         const response = result.data;
         if (response?.success === true && Array.isArray(response?.moves)) {
           console.log("Fetched moves from server", response.moves);
-
+         
           const moves = response.moves;
           for (const move of moves) {
             move.moveData = JSON.parse(move.moveData);
@@ -532,19 +535,32 @@ const Game = ({ gameId }: { gameId: string }) => {
           setMoves(moves);
           setCurrentMove(0);
         } else {
+          
           console.log("Failed to fetch moves fo server for unknown reason");
+          returnMenu();
         }
       } catch (error: any) {
         console.log("Failed to fetch moves fo server", error);
+        returnMenu();
       }
     };
     console.log(gameId);
     fetchMoves();
+    
   }, []);
 
+  
 
   return (
     <FullScreenComponent style={styles.container}>
+
+      <TouchableOpacity
+        onPress={returnMenu}
+        style={styles.backButton}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 8}}>Go Back</Text>
+      </TouchableOpacity>
+
       <Svg style={styles.game} viewBox="40 60 125 130">
         {territoirePaths.map((territoire) => (
           <G key={`group-${territoire.id}`}>
@@ -629,4 +645,26 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   button: {},
+
+  backButton: {
+    position: 'absolute',
+    width: 60,
+    height: 20,
+    top: 15,
+    left: 20,
+    backgroundColor: 'black',
+    opacity: 0.7,
+    padding: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 2 },
+    borderWidth: 0.5,
+    borderColor: '#0000ff',
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 999,
+  },
 });
