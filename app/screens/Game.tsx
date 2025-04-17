@@ -6,6 +6,17 @@ import { Colors } from "../config/color";
 import { StatusBar } from "expo-status-bar";
 import FullScreenComponent from "../components/FullScreen";
 import axios from "axios";
+import { deepCopy } from "../utililty/utils";
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { transform } from "@babel/core";
+import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
+
+const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
 
 function randomInteger(min: number, max: number): number {
   let randomNumber = Math.random();
@@ -22,12 +33,32 @@ interface bboxPros {
   height: number;
 }
 
-const territoirePaths: {
+interface ParticuleProps {
+  territoireId: string;
+  playerId: number;
+  count: number;
+  expiration: number;
+}
+
+interface TerritoireProps {
   path: string;
   id: string;
   bbox: bboxPros;
   pastille: { x: number; y: number };
-}[] = [
+  particule?: ParticuleProps;
+}
+
+interface MoveProps {
+  territories: any;
+  particules: ParticuleProps[];
+}
+
+interface DraftProps {
+  territoireId: string;
+  troopsCount: number;
+}
+
+const territoirePaths: TerritoireProps[] = [
   {
     id: "alaska",
     path: "M23.615 93.508l-.403-.027-.885.618-.859.59.026.51.618.054.107.725.43.349.939-.027.725.053.671-.483.402.027.054.779.054.644-.376.59-.859.161-.59.51-.698.322-.376.403-.161.805.617.671.564.376-.268.591.268.375.376.215.402-.483.376.295.242 1.235.375-.323.376-.08.295.295.403.268.268-.375.322.295.591-.403-.027.483-.295.645-.107.644-.672.832v.564l.457-.296.537-.51.644-.697.617-.457.456-.429.269-.349-.107-.295-.135-.188.242-.618.322-.188.161-.349.107-.322.645-.751.429-.242.322-.134.483.268.349.242.322-.188.268-.242.161.242.51.054.403.295.537.429.59.403h.376l.322-.081.456.134.429.081.483.187.537-.187.322.671.51.161.483.671.51.241.43.349.59.295.618.457.832.698.859 1.261.59 1.369.135.591.509.241.054.644.563.376.269.939.241.349.456-.027.323-.241.161-.457-.081-.563.161-.403-.002-.697.296-.671.188-.886-.108-1.235-.107-.966.268-.751.054-1.047.778-.752.296-.215-.403-.671-.107-.751-.269-.778.242-.618.188-1.181-.349-.698-.671-.563-.269-.832-.375-.564-.376-.832-.456-.671-1.181-1.074-.456-1.1-.779-.617-.805-.645-1.315-.644-1.154-.376-1.128-.778-.483-.51-.993.027-.483-.43-.51-.349-.779.188H34.51l-.537-.268-.779-.054-.966-.375-1.127-.108-.591-.107-.268-.483-.698-.108-.591-.08-.724-.43-.403-.107-.778.617-.671.108-.349.322-.806.644-.617.429-.376.698-.322.698-.564.403-.885.134-.269.537.108.456.698.483.402.43.242.456.241.349.537-.054.43.108.08.375.537.108.51.08.188.161v.376l-.779.322-.697.295-.806-.026-.214-.376Z",
@@ -492,45 +523,168 @@ const territoirePaths: {
   },
 ];
 
-const buildGameTerritoires = () => {
-  const obj: any = {};
-  for (const territoire of territoirePaths) {
-    obj[territoire.id] = {
-      playerId: randomInteger(1, 6),
-      troops: randomInteger(1, 100),
-    };
-  }
-  return obj;
-};
+const gameMoves: any[] = [];
+const PARTICULE_DURATION = 1000;
 
 const Game = ({ gameId }: { gameId: string }) => {
-  const [moves, setMoves] = useState<any>(null);
-  // const [gameTerritoires, setGameTerritoires] = useState(
-  //   buildGameTerritoires()
-  // );
+  const [currentMove, setCurrentMove] = useState(0);
+  const [currentPartialMove, setCurrentPartialMove] = useState(0);
+  const [currentMoveData, setCurrentMoveData] = useState<MoveProps[]>([]);
+  const [fontsLoaded] = useFonts({ Kanit_900Black });
 
-  const [currentMove, setCurrentMove] = useState<number>(0);
+  const nextMove = () => {
+    const nextPartialMove = (currentPartialMove + 1) % currentMoveData.length;
+    if (nextPartialMove > 0) {
+      setCurrentPartialMove(nextPartialMove);
+      return;
+    }
+
+    const nextCurrentMove = (currentMove + 1) % gameMoves.length;
+
+    const moveData = gameMoves[nextCurrentMove].moveData;
+    const move: {
+      attacks: any[];
+      draft: DraftProps[];
+      player: number;
+    } = moveData.move;
+    const stepMoves: MoveProps[] = [];
+    // TODO: Fix for when returning to 0
+    let lastMoveData = gameMoves[currentMove].moveData;
+    if (
+      move.attacks &&
+      Array.isArray(move.attacks) &&
+      move.attacks.length > 0
+    ) {
+      console.log("Attacks: ", move.attacks);
+      for (const attack of move.attacks) {
+        const stepMove: MoveProps = {
+          territories: deepCopy(lastMoveData.territories),
+          particules: [],
+        };
+
+        if (
+          attack.defenderLostTroops != null &&
+          attack.attackerLostTroops != null
+        ) {
+          console.log(
+            `${attack.attackerTerritoireId}[${
+              stepMove.territories[attack.defenderTerritoireId].troops
+            }] attacking ${attack.defenderTerritoireId}[${
+              stepMove.territories[attack.attackerTerritoireId].troops
+            }] resulting in ${attack.defenderLostTroops} and ${
+              attack.attackerLostTroops
+            }`
+          );
+          // Attack move
+          stepMove.territories[attack.defenderTerritoireId].troops -=
+            attack.defenderLostTroops;
+          stepMove.territories[attack.attackerTerritoireId].troops -=
+            attack.attackerLostTroops;
+
+          if (attack.defenderLostTroops > 0) {
+            stepMove.particules.push({
+              territoireId: attack.defenderTerritoireId,
+              playerId:
+                stepMove.territories[attack.defenderTerritoireId].playerId,
+              count: attack.defenderLostTroops,
+              expiration: Date.now() + PARTICULE_DURATION,
+            });
+          }
+
+          if (attack.attackerLostTroops > 0) {
+            stepMove.particules.push({
+              territoireId: attack.attackerTerritoireId,
+              playerId: move.player,
+              count: attack.attackerLostTroops,
+              expiration: Date.now() + PARTICULE_DURATION,
+            });
+          }
+
+          // Territory was taken over
+          if (stepMove.territories[attack.defenderTerritoireId].troops <= 0) {
+            stepMove.territories[attack.defenderTerritoireId].troops = 1;
+            stepMove.territories[attack.attackerTerritoireId].troops -= 1;
+
+            stepMove.territories[attack.defenderTerritoireId].playerId =
+              move.player;
+          }
+        } else if (attack.movedTroops) {
+          console.log(`moving ${attack.movedTroops}`);
+          // Post attack troops placement
+          stepMove.territories[attack.defenderTerritoireId].troops +=
+            attack.movedTroops;
+          stepMove.territories[attack.attackerTerritoireId].troops -=
+            attack.movedTroops;
+        }
+
+        lastMoveData = stepMove;
+        stepMoves.push(stepMove);
+      }
+    } else if (
+      move.draft &&
+      Array.isArray(move.draft) &&
+      move.draft.length > 0
+    ) {
+      console.log("Draft: ", move.draft);
+
+      for (const draft of move.draft) {
+        const stepMove: MoveProps = {
+          territories: deepCopy(lastMoveData.territories),
+          particules: [],
+        };
+
+        // Ajouter les troupes
+        stepMove.territories[draft.territoireId].troops += draft.troopsCount;
+
+        // Ajouter la particules
+        stepMove.particules.push({
+          territoireId: draft.territoireId,
+          playerId: move.player,
+          count: draft.troopsCount,
+          expiration: Date.now() + PARTICULE_DURATION,
+        });
+
+        lastMoveData = stepMove;
+        stepMoves.push(stepMove);
+      }
+    } else {
+      stepMoves.push({
+        territories: moveData.territories,
+        particules: [],
+      });
+    }
+
+    setCurrentMoveData(stepMoves);
+    setCurrentMove(nextCurrentMove);
+    setCurrentPartialMove(0);
+  };
 
   useEffect(() => {
     // Lock to lanscape orientation
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
 
-    const fetchMoves = async () => {
+    const MOVES_FETCH_LIMIT = 20;
+    const fetchMoves = async (after: number = 0) => {
       const API_URL = process.env.EXPO_PUBLIC_API_URL;
-      const API_ENDPOINT = `${API_URL}/moves/${gameId}`;
+      const API_ENDPOINT = `${API_URL}/moves/${gameId}?after=${after}&limit=${MOVES_FETCH_LIMIT}`;
+
       try {
         const result = await axios.get(API_ENDPOINT);
         const response = result.data;
         if (response?.success === true && Array.isArray(response?.moves)) {
-          console.log("Fetched moves from server", response.moves);
+          console.log("Fetched moves from server ", response.moves.length);
 
           const moves = response.moves;
           for (const move of moves) {
             move.moveData = JSON.parse(move.moveData);
+            gameMoves.push(move);
           }
 
-          setMoves(moves);
-          setCurrentMove(0);
+          if (moves.length == MOVES_FETCH_LIMIT) {
+            fetchMoves(after + MOVES_FETCH_LIMIT);
+          } else {
+            console.log("Moves fetch is done");
+          }
         } else {
           console.log("Failed to fetch moves fo server for unknown reason");
         }
@@ -538,79 +692,155 @@ const Game = ({ gameId }: { gameId: string }) => {
         console.log("Failed to fetch moves fo server", error);
       }
     };
-    console.log(gameId);
+
+    gameMoves.length = 0;
     fetchMoves();
+    setCurrentMove(0);
+    setCurrentPartialMove(0);
+    setCurrentMoveData([]);
   }, []);
+
+  const Territoire = ({ territoire }: { territoire: TerritoireProps }) => {
+    return (
+      <G key={`group-${territoire.id}`}>
+        <Path
+          d={territoire.path}
+          key={territoire.id}
+          fill={
+            Colors.playersTerritoire[
+              currentMoveData.length == 0
+                ? 0
+                : currentMoveData[currentPartialMove].territories[territoire.id]
+                    .playerId
+            ]
+          }
+        />
+        <Circle
+          cx={territoire.bbox.x + territoire.bbox.width * territoire.pastille.x}
+          cy={
+            territoire.bbox.y + territoire.bbox.height * territoire.pastille.y
+          }
+          r={4.5}
+          fill={
+            Colors.playersBackground[
+              currentMoveData.length == 0
+                ? 0
+                : currentMoveData[currentPartialMove].territories[territoire.id]
+                    .playerId
+            ]
+          }
+          key={`pastille-${territoire.id}`}
+        />
+        <SvgText
+          x={territoire.bbox.x + territoire.bbox.width * territoire.pastille.x}
+          y={territoire.bbox.y + territoire.bbox.height * territoire.pastille.y}
+          textAnchor={"middle"}
+          alignmentBaseline={"middle"}
+          fontFamily={"Kanit_900Black"}
+          fontSize={4}
+          strokeWidth={0.35}
+          fill={"white"}
+          stroke={"black"}
+          key={`text-${territoire.id}`}
+        >
+          {currentMoveData.length == 0
+            ? 0
+            : currentMoveData[currentPartialMove].territories[territoire.id]
+                .troops}
+        </SvgText>
+      </G>
+    );
+  };
+
+  const Territoires = () => {
+    return territoirePaths.map((territoire) => (
+      <Territoire territoire={territoire} />
+    ));
+  };
+
+  const Particule = ({ territoire }: { territoire: TerritoireProps }) => {
+    if (
+      currentMoveData.length == 0 ||
+      currentMoveData[currentPartialMove].particules.length === 0
+    ) {
+      return;
+    }
+
+    const particule = currentMoveData[currentPartialMove].particules.find(
+      (particule) => particule.territoireId === territoire.id
+    );
+    if (!particule) return;
+
+    const formatter = new Intl.NumberFormat("en-US", {
+      signDisplay: "always", // Always show "+" or "-"
+    });
+
+    const y = useSharedValue(
+      territoire.bbox.y + territoire.bbox.height * territoire.pastille.y - 3
+    );
+    const x = useSharedValue(
+      territoire.bbox.x + territoire.bbox.width * territoire.pastille.x
+    );
+    const opacity = useSharedValue(1.0);
+
+    const animatedProps = useAnimatedProps(() => ({
+      y: withTiming(y.value, {
+        duration: PARTICULE_DURATION,
+        easing: Easing.out(Easing.quad),
+      }),
+      x: x.value,
+      opacity: withTiming(opacity.value, { duration: PARTICULE_DURATION }),
+    }));
+
+    useEffect(() => {
+      opacity.value = 0;
+      y.value -= 6;
+    }, []);
+
+    return (
+      <AnimatedSvgText
+        textAnchor={"middle"}
+        alignmentBaseline={"middle"}
+        fontFamily={"Kanit_900Black"}
+        fontSize={4}
+        strokeWidth={0.35}
+        stroke={"black"}
+        fill={Colors.playersBackground[particule.playerId]}
+        key={`particule-${territoire.id}`}
+        animatedProps={animatedProps}
+      >
+        {formatter.format(particule.count)}
+      </AnimatedSvgText>
+    );
+  };
+
+  const Particules = () => {
+    return territoirePaths.map((territoire) => (
+      <Particule territoire={territoire} />
+    ));
+  };
+
+  const Hud = () => {
+    return (
+      <Button
+        title={`Next ${currentMove}/ ${
+          gameMoves.length == 0 ? undefined : gameMoves.length - 1
+        }`}
+        color="#841584"
+        onPress={() => {
+          if (gameMoves.length) nextMove();
+        }}
+      />
+    );
+  };
 
   return (
     <FullScreenComponent style={styles.container}>
       <Svg style={styles.game} viewBox="40 60 125 130">
-        {territoirePaths.map((territoire) => (
-          <G key={`group-${territoire.id}`}>
-            <Path
-              d={territoire.path}
-              key={territoire.id}
-              fill={
-                Colors.playersTerritoire[
-                  moves == null
-                    ? 0
-                    : moves[currentMove].moveData.territories[territoire.id]
-                        .playerId
-                ]
-              }
-            />
-            <Circle
-              cx={
-                territoire.bbox.x +
-                territoire.bbox.width * territoire.pastille.x
-              }
-              cy={
-                territoire.bbox.y +
-                territoire.bbox.height * territoire.pastille.y
-              }
-              r={4.5}
-              fill={
-                Colors.playersBackground[
-                  moves == null
-                    ? 0
-                    : moves[currentMove].moveData.territories[territoire.id]
-                        .playerId
-                ]
-              }
-              key={`pastille-${territoire.id}`}
-            />
-            <SvgText
-              x={
-                territoire.bbox.x +
-                territoire.bbox.width * territoire.pastille.x
-              }
-              y={
-                territoire.bbox.y +
-                territoire.bbox.height * territoire.pastille.y
-              }
-              textAnchor={"middle"}
-              alignmentBaseline={"middle"}
-              fontFamily={"Kanit_900Black"}
-              fontSize={4}
-              strokeWidth={0.35}
-              fill={"white"}
-              stroke={"black"}
-              key={`text-${territoire.id}`}
-            >
-              {moves == null
-                ? 0
-                : moves[currentMove].moveData.territories[territoire.id].troops}
-            </SvgText>
-          </G>
-        ))}
+        <Territoires />
+        <Particules />
       </Svg>
-      <Button
-        title={`Next ${currentMove}/ ${moves ? moves.length - 1 : undefined}`}
-        color="#841584"
-        onPress={() => {
-          setCurrentMove(Math.min(currentMove + 1, moves.length - 1));
-        }}
-      />
+      <Hud />
     </FullScreenComponent>
   );
 };
