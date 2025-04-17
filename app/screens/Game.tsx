@@ -525,21 +525,112 @@ const territoirePaths: TerritoireProps[] = [
 
 const gameMoves: any[] = [];
 const PARTICULE_DURATION = 1000;
+const MOVE_INTERVAL = [500, 1000, 2000];
+let currentMoveSpeed = MOVE_INTERVAL[1];
 
 const Game = ({ gameId }: { gameId: string }) => {
-  const [currentMove, setCurrentMove] = useState(0);
-  const [currentPartialMove, setCurrentPartialMove] = useState(0);
-  const [currentMoveData, setCurrentMoveData] = useState<MoveProps[]>([]);
-  const [fontsLoaded] = useFonts({ Kanit_900Black });
+  const [currentMove, _setCurrentMove] = useState(0);
+  const [currentPartialMove, _setCurrentPartialMove] = useState(0);
+  const [currentMoveData, _setCurrentMoveData] = useState<MoveProps[]>([]);
+  const [fontsLoaded] = useFonts({ Kanit_900Black});
+  const moveInterval = useRef<NodeJS.Timeout | null>(null);
+  const currentMoveRef = useRef(currentMove);
+  const currentPartialMoveRef = useRef(currentPartialMove);
+  const currentMoveDataRef = useRef(currentMoveData);
+
+  useEffect(() => {
+    currentMoveRef.current = currentMove;
+  }, [currentMove]);
+
+  useEffect(() => {
+    currentPartialMoveRef.current = currentPartialMove;
+  }, [currentPartialMove]);
+
+  useEffect(() => {
+    currentMoveDataRef.current = currentMoveData;
+  }, [currentMoveData]);
+
+  const setCurrentMove = (value: number) => {
+    _setCurrentMove(value);
+    currentMoveRef.current = value;
+  };
+
+  const setCurrentPartialMove = (value: number) => {
+    _setCurrentPartialMove(value);
+    currentPartialMoveRef.current = value;
+    console.log(`setCurrentPartialMove(${value})`);
+  };
+
+  const setCurrentMoveData = (value: MoveProps[]) => {
+    _setCurrentMoveData(value);
+    currentMoveDataRef.current = value;
+  };
+
+  useEffect(() => {
+    // Lock to lanscape orientation
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+
+    const MOVES_FETCH_LIMIT = 20;
+    const fetchMoves = async (after: number = 0) => {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL;
+      const API_ENDPOINT = `${API_URL}/moves/${gameId}?after=${after}&limit=${MOVES_FETCH_LIMIT}`;
+
+      try {
+        const result = await axios.get(API_ENDPOINT);
+        const response = result.data;
+        if (response?.success === true && Array.isArray(response?.moves)) {
+          console.log("Fetched moves from server ", response.moves.length);
+
+          const moves = response.moves;
+          for (const move of moves) {
+            move.moveData = JSON.parse(move.moveData);
+            gameMoves.push(move);
+          }
+
+          if (moves.length == MOVES_FETCH_LIMIT) {
+            fetchMoves(after + MOVES_FETCH_LIMIT);
+          } else {
+            console.log("Moves fetch is done");
+          }
+        } else {
+          console.log("Failed to fetch moves fo server for unknown reason");
+        }
+      } catch (error: any) {
+        console.log("Failed to fetch moves fo server", error);
+      }
+    };
+
+    gameMoves.length = 0;
+    fetchMoves();
+    setCurrentMove(0);
+    setCurrentPartialMove(0);
+    setCurrentMoveData([]);
+
+    return () => {
+      console.log("Clearing interval ", moveInterval.current);
+      stopPlay();
+    };
+  }, []);
 
   const nextMove = () => {
-    const nextPartialMove = (currentPartialMove + 1) % currentMoveData.length;
+    const nextPartialMove =
+      (currentPartialMoveRef.current + 1) % currentMoveDataRef.current.length;
+
+    console.log(
+      "nextMove ",
+      currentPartialMoveRef.current,
+      nextPartialMove,
+      currentMoveDataRef.current.length,
+      currentMove,
+      gameMoves.length
+    );
+
     if (nextPartialMove > 0) {
       setCurrentPartialMove(nextPartialMove);
       return;
     }
 
-    const nextCurrentMove = (currentMove + 1) % gameMoves.length;
+    const nextCurrentMove = (currentMoveRef.current + 1) % gameMoves.length;
 
     const moveData = gameMoves[nextCurrentMove].moveData;
     const move: {
@@ -549,7 +640,7 @@ const Game = ({ gameId }: { gameId: string }) => {
     } = moveData.move;
     const stepMoves: MoveProps[] = [];
     // TODO: Fix for when returning to 0
-    let lastMoveData = gameMoves[currentMove].moveData;
+    let lastMoveData = gameMoves[currentMoveRef.current].moveData;
     if (
       move.attacks &&
       Array.isArray(move.attacks) &&
@@ -659,46 +750,36 @@ const Game = ({ gameId }: { gameId: string }) => {
     setCurrentPartialMove(0);
   };
 
-  useEffect(() => {
-    // Lock to lanscape orientation
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+  const startPlay = () => {
+    if (moveInterval.current != null) {
+      clearTimeout(moveInterval.current);
+    }
+    const test = nextMove;
+    function fn() {
+      return setTimeout(() => {
+        test();
+        if (moveInterval.current) moveInterval.current = fn();
+      }, currentMoveSpeed);
+    }
 
-    const MOVES_FETCH_LIMIT = 20;
-    const fetchMoves = async (after: number = 0) => {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL;
-      const API_ENDPOINT = `${API_URL}/moves/${gameId}?after=${after}&limit=${MOVES_FETCH_LIMIT}`;
+    moveInterval.current = fn();
+    // moveInterval.current = setInterval(() => {
+    //   console.log("Interval running...");
+    //   // Check if there are game moves and call nextMove only if valid
+    //   if (gameMoves.length) {
+    //     nextMove();
+    //   } else {
+    //     console.log("No more moves. Waiting...");
+    //   }
+    // }, currentMoveSpeed);
+  };
 
-      try {
-        const result = await axios.get(API_ENDPOINT);
-        const response = result.data;
-        if (response?.success === true && Array.isArray(response?.moves)) {
-          console.log("Fetched moves from server ", response.moves.length);
-
-          const moves = response.moves;
-          for (const move of moves) {
-            move.moveData = JSON.parse(move.moveData);
-            gameMoves.push(move);
-          }
-
-          if (moves.length == MOVES_FETCH_LIMIT) {
-            fetchMoves(after + MOVES_FETCH_LIMIT);
-          } else {
-            console.log("Moves fetch is done");
-          }
-        } else {
-          console.log("Failed to fetch moves fo server for unknown reason");
-        }
-      } catch (error: any) {
-        console.log("Failed to fetch moves fo server", error);
-      }
-    };
-
-    gameMoves.length = 0;
-    fetchMoves();
-    setCurrentMove(0);
-    setCurrentPartialMove(0);
-    setCurrentMoveData([]);
-  }, []);
+  const stopPlay = () => {
+    if (moveInterval.current != null) {
+      clearTimeout(moveInterval.current); // Stop the interval
+      moveInterval.current = null; // Reset the state
+    }
+  };
 
   const Territoire = ({ territoire }: { territoire: TerritoireProps }) => {
     return (
@@ -741,7 +822,6 @@ const Game = ({ gameId }: { gameId: string }) => {
           strokeWidth={0.35}
           fill={"white"}
           stroke={"black"}
-          key={`text-${territoire.id}`}
         >
           {currentMoveData.length == 0
             ? 0
@@ -754,7 +834,7 @@ const Game = ({ gameId }: { gameId: string }) => {
 
   const Territoires = () => {
     return territoirePaths.map((territoire) => (
-      <Territoire territoire={territoire} />
+      <Territoire territoire={territoire} key={`text-${territoire.id}`} />
     ));
   };
 
@@ -806,7 +886,6 @@ const Game = ({ gameId }: { gameId: string }) => {
         strokeWidth={0.35}
         stroke={"black"}
         fill={Colors.playersBackground[particule.playerId]}
-        key={`particule-${territoire.id}`}
         animatedProps={animatedProps}
       >
         {formatter.format(particule.count)}
@@ -816,21 +895,38 @@ const Game = ({ gameId }: { gameId: string }) => {
 
   const Particules = () => {
     return territoirePaths.map((territoire) => (
-      <Particule territoire={territoire} />
+      <Particule territoire={territoire} key={`particule-${territoire.id}`} />
     ));
+  };
+
+  const Controls = () => {
+    return (
+      <View>
+        <Button
+          title={`Next ${currentMove}/ ${
+            gameMoves.length === 0 ? "None" : gameMoves.length - 1
+          }`}
+          color="#841584"
+          onPress={() => {
+            if (gameMoves.length) nextMove();
+          }}
+        />
+        <Button title="Play" onPress={startPlay} />
+        <Button title="Pause" onPress={stopPlay} />
+      </View>
+    );
+  };
+
+  const GameState = () => {
+    return null;
   };
 
   const Hud = () => {
     return (
-      <Button
-        title={`Next ${currentMove}/ ${
-          gameMoves.length == 0 ? undefined : gameMoves.length - 1
-        }`}
-        color="#841584"
-        onPress={() => {
-          if (gameMoves.length) nextMove();
-        }}
-      />
+      <View>
+        <Controls />
+        <GameState />
+      </View>
     );
   };
 
@@ -849,7 +945,6 @@ export default Game;
 
 const styles = StyleSheet.create({
   container: {
-    // Corrected the typo here
     flexDirection: "row",
     height: "100%",
   },
