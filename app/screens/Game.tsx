@@ -1,5 +1,11 @@
-import { View, Text, Button, StyleSheet } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  Animated as Animated2,
+} from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
 import { Colors } from "../config/color";
@@ -15,8 +21,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { transform } from "@babel/core";
 import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
+import Slider from "@react-native-community/slider";
 
 const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
+const AnimatedSvgText2 = Animated2.createAnimatedComponent(SvgText);
 
 function randomInteger(min: number, max: number): number {
   let randomNumber = Math.random();
@@ -532,7 +540,8 @@ const Game = ({ gameId }: { gameId: string }) => {
   const [currentMove, _setCurrentMove] = useState(0);
   const [currentPartialMove, _setCurrentPartialMove] = useState(0);
   const [currentMoveData, _setCurrentMoveData] = useState<MoveProps[]>([]);
-  const [fontsLoaded] = useFonts({ Kanit_900Black});
+  const [currentMoveSpeedIndex, _setCurrentMoveSpeedIndex] = useState(1);
+  const [fontsLoaded] = useFonts({ Kanit_900Black });
   const moveInterval = useRef<NodeJS.Timeout | null>(null);
   const currentMoveRef = useRef(currentMove);
   const currentPartialMoveRef = useRef(currentPartialMove);
@@ -564,6 +573,11 @@ const Game = ({ gameId }: { gameId: string }) => {
   const setCurrentMoveData = (value: MoveProps[]) => {
     _setCurrentMoveData(value);
     currentMoveDataRef.current = value;
+  };
+
+  const setCurrentMoveSpeedIndex = (value: number) => {
+    if (value != currentMoveSpeedIndex) _setCurrentMoveSpeedIndex(value);
+    currentMoveSpeed = MOVE_INTERVAL[value];
   };
 
   useEffect(() => {
@@ -677,7 +691,7 @@ const Game = ({ gameId }: { gameId: string }) => {
               territoireId: attack.defenderTerritoireId,
               playerId:
                 stepMove.territories[attack.defenderTerritoireId].playerId,
-              count: attack.defenderLostTroops,
+              count: -attack.defenderLostTroops,
               expiration: Date.now() + PARTICULE_DURATION,
             });
           }
@@ -686,7 +700,7 @@ const Game = ({ gameId }: { gameId: string }) => {
             stepMove.particules.push({
               territoireId: attack.attackerTerritoireId,
               playerId: move.player,
-              count: attack.attackerLostTroops,
+              count: -attack.attackerLostTroops,
               expiration: Date.now() + PARTICULE_DURATION,
             });
           }
@@ -754,24 +768,15 @@ const Game = ({ gameId }: { gameId: string }) => {
     if (moveInterval.current != null) {
       clearTimeout(moveInterval.current);
     }
-    const test = nextMove;
+
     function fn() {
       return setTimeout(() => {
-        test();
+        nextMove();
         if (moveInterval.current) moveInterval.current = fn();
       }, currentMoveSpeed);
     }
 
     moveInterval.current = fn();
-    // moveInterval.current = setInterval(() => {
-    //   console.log("Interval running...");
-    //   // Check if there are game moves and call nextMove only if valid
-    //   if (gameMoves.length) {
-    //     nextMove();
-    //   } else {
-    //     console.log("No more moves. Waiting...");
-    //   }
-    // }, currentMoveSpeed);
   };
 
   const stopPlay = () => {
@@ -779,6 +784,12 @@ const Game = ({ gameId }: { gameId: string }) => {
       clearTimeout(moveInterval.current); // Stop the interval
       moveInterval.current = null; // Reset the state
     }
+  };
+
+  const reset = () => {
+    setCurrentMoveData([]);
+    setCurrentMove(0);
+    setCurrentPartialMove(0);
   };
 
   const Territoire = ({ territoire }: { territoire: TerritoireProps }) => {
@@ -838,37 +849,34 @@ const Game = ({ gameId }: { gameId: string }) => {
     ));
   };
 
-  const Particule = ({ territoire }: { territoire: TerritoireProps }) => {
-    if (
-      currentMoveData.length == 0 ||
-      currentMoveData[currentPartialMove].particules.length === 0
-    ) {
-      return;
+  const Particule = (territoire: TerritoireProps) => {
+    const currentData = currentMoveData[currentPartialMove];
+    if (!currentData || currentData.particules.length === 0) {
+      return null;
     }
 
-    const particule = currentMoveData[currentPartialMove].particules.find(
+    const particule = currentData.particules.find(
       (particule) => particule.territoireId === territoire.id
     );
-    if (!particule) return;
+    if (!particule) return null;
 
-    const formatter = new Intl.NumberFormat("en-US", {
-      signDisplay: "always", // Always show "+" or "-"
-    });
+    const formatter = useMemo(
+      () =>
+        new Intl.NumberFormat("en-US", {
+          signDisplay: "always",
+        }),
+      []
+    );
 
     const y = useSharedValue(
       territoire.bbox.y + territoire.bbox.height * territoire.pastille.y - 3
-    );
-    const x = useSharedValue(
-      territoire.bbox.x + territoire.bbox.width * territoire.pastille.x
     );
     const opacity = useSharedValue(1.0);
 
     const animatedProps = useAnimatedProps(() => ({
       y: withTiming(y.value, {
         duration: PARTICULE_DURATION,
-        easing: Easing.out(Easing.quad),
       }),
-      x: x.value,
       opacity: withTiming(opacity.value, { duration: PARTICULE_DURATION }),
     }));
 
@@ -879,6 +887,7 @@ const Game = ({ gameId }: { gameId: string }) => {
 
     return (
       <AnimatedSvgText
+        x={territoire.bbox.x + territoire.bbox.width * territoire.pastille.x}
         textAnchor={"middle"}
         alignmentBaseline={"middle"}
         fontFamily={"Kanit_900Black"}
@@ -887,21 +896,87 @@ const Game = ({ gameId }: { gameId: string }) => {
         stroke={"black"}
         fill={Colors.playersBackground[particule.playerId]}
         animatedProps={animatedProps}
+        key={`particule-${territoire.id}`}
       >
         {formatter.format(particule.count)}
       </AnimatedSvgText>
     );
   };
 
+  const Particule2 = (territoire: TerritoireProps) => {
+    const currentData = currentMoveData[currentPartialMove];
+    if (!currentData || currentData.particules.length === 0) {
+      return null;
+    }
+
+    const particule = currentData.particules.find(
+      (particule) => particule.territoireId === territoire.id
+    );
+    if (!particule) return null;
+
+    const formatter = useMemo(
+      () =>
+        new Intl.NumberFormat("en-US", {
+          signDisplay: "always",
+        }),
+      []
+    );
+
+
+    const y = useRef(
+      new Animated2.Value(
+        territoire.bbox.y + territoire.bbox.height * territoire.pastille.y - 3
+      )
+    ).current;
+    const opacity = useRef(new Animated2.Value(1.0)).current;
+
+    useEffect(() => {
+      // Animate opacity and y position
+      Animated2.parallel([
+        Animated2.timing(opacity, {
+          toValue: 0,
+          duration: PARTICULE_DURATION,
+          useNativeDriver: true,
+        }),
+        Animated2.timing(y, {
+          toValue:
+            territoire.bbox.y +
+            territoire.bbox.height * territoire.pastille.y -
+            3 -
+            6,
+          duration: PARTICULE_DURATION,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [opacity, y, territoire]);
+
+    return (
+      <AnimatedSvgText2
+        x={territoire.bbox.x + territoire.bbox.width * territoire.pastille.x}
+        y={y}
+        textAnchor="middle"
+        alignmentBaseline="middle"
+        fontFamily="Kanit_900Black"
+        fontSize={4}
+        strokeWidth={0.35}
+        stroke="black"
+        fill={Colors.playersBackground[particule.playerId]}
+        opacity={opacity}
+        key={`particule-${territoire.id}`}
+      >
+        {formatter.format(particule.count)}
+      </AnimatedSvgText2>
+    );
+  };
+
   const Particules = () => {
-    return territoirePaths.map((territoire) => (
-      <Particule territoire={territoire} key={`particule-${territoire.id}`} />
-    ));
+    return territoirePaths.map(Particule2);
   };
 
   const Controls = () => {
     return (
       <View>
+        <Button title="Exit" />
         <Button
           title={`Next ${currentMove}/ ${
             gameMoves.length === 0 ? "None" : gameMoves.length - 1
@@ -913,6 +988,19 @@ const Game = ({ gameId }: { gameId: string }) => {
         />
         <Button title="Play" onPress={startPlay} />
         <Button title="Pause" onPress={stopPlay} />
+        <Button title="Reset" onPress={reset} />
+        <View style={{ backgroundColor: "#841584" }}>
+          <Text>Speed</Text>
+          <Slider
+            minimumValue={0}
+            maximumValue={MOVE_INTERVAL.length - 1}
+            step={1}
+            minimumTrackTintColor="#FFFFFF"
+            maximumTrackTintColor="#000000"
+            onSlidingComplete={setCurrentMoveSpeedIndex}
+            value={currentMoveSpeedIndex}
+          />
+        </View>
       </View>
     );
   };
