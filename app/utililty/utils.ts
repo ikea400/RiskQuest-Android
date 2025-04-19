@@ -12,12 +12,3 @@ export function arrayEquals(a1: any[], a2: any[]) {
   return true;
 }
 
-export function formatDate(dateString: string) {
-  if (!dateString) return 'Date N/A';
-  try {
-    return format(new Date(dateString), 'YYYY-MM-DD HH:mm:ss');
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return dateString; 
-  }
-}

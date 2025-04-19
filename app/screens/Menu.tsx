@@ -2,7 +2,6 @@ import { useState, useEffect} from "react";
 import { Button, StyleSheet, Text, TextInput, View, TouchableOpacity, ScrollView } from "react-native";
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import Game from "./Game";
-import { formatDate } from "../utililty/utils";
 import { NavigationProps } from "../../App";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../config/color";
@@ -90,6 +89,7 @@ const MenuPage = ({
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {games.map((game, index) => (
+            
             <TouchableOpacity key={index} style={styles.itemContainer} onPress={() => setOpenGameId(game.id)}>
               <View style={styles.itemContentRow}>
                 
@@ -102,7 +102,7 @@ const MenuPage = ({
                     ]}>
                     {game.finished ? 'Finished' : 'Ongoing'}
                   </Text>
-                  <Text style={styles.dateText}>{formatDate(game.start_date)}</Text>
+                  <Text style={styles.dateText}>{game.start_date}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
   },
   gameIdText: {
-    fontSize: 17,
+    fontSize: 12,
     fontWeight: '600', 
     color: '#2c3e50', 
     flexShrink: 1, 
