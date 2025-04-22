@@ -20,4 +20,5 @@ export const Colors = {
   mainButton: "#87b159",
   errorText: "#eb2132",
   background: undefined,
+  playerHudBackground: "#062534",
 };

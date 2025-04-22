@@ -3,7 +3,10 @@ import {
   Text,
   Button,
   StyleSheet,
+  StyleProp,
+  ViewStyle,
   Animated as Animated2,
+  ColorValue,
 } from "react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -22,6 +25,7 @@ import Animated, {
 import { transform } from "@babel/core";
 import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
 import Slider from "@react-native-community/slider";
+import { LocationIcon, PersonIcon } from "../components/Icons";
 
 const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
 const AnimatedSvgText2 = Animated2.createAnimatedComponent(SvgText);
@@ -56,8 +60,16 @@ interface TerritoireProps {
   particule?: ParticuleProps;
 }
 
+interface PlayerProps {
+  name: string;
+  bot: any;
+  troops: number;
+  dead: boolean | undefined;
+}
+
 interface MoveProps {
   territories: any;
+  players: (PlayerProps | null)[];
   particules: ParticuleProps[];
 }
 
@@ -535,6 +547,7 @@ const gameMoves: any[] = [];
 const PARTICULE_DURATION = 1000;
 const MOVE_INTERVAL = [500, 1000, 2000];
 let currentMoveSpeed = MOVE_INTERVAL[1];
+const MAX_PLAYER_COUNT = 6;
 
 const Game = ({ gameId }: { gameId: string }) => {
   const [currentMove, _setCurrentMove] = useState(0);
@@ -664,6 +677,7 @@ const Game = ({ gameId }: { gameId: string }) => {
       for (const attack of move.attacks) {
         const stepMove: MoveProps = {
           territories: deepCopy(lastMoveData.territories),
+          players: moveData.players,
           particules: [],
         };
 
@@ -735,6 +749,7 @@ const Game = ({ gameId }: { gameId: string }) => {
       for (const draft of move.draft) {
         const stepMove: MoveProps = {
           territories: deepCopy(lastMoveData.territories),
+          players: moveData.players,
           particules: [],
         };
 
@@ -755,6 +770,7 @@ const Game = ({ gameId }: { gameId: string }) => {
     } else {
       stepMoves.push({
         territories: moveData.territories,
+        players: moveData.players,
         particules: [],
       });
     }
@@ -922,7 +938,6 @@ const Game = ({ gameId }: { gameId: string }) => {
       []
     );
 
-
     const y = useRef(
       new Animated2.Value(
         territoire.bbox.y + territoire.bbox.height * territoire.pastille.y - 3
@@ -1009,11 +1024,79 @@ const Game = ({ gameId }: { gameId: string }) => {
     return null;
   };
 
+  const totalPlayerTroops = (playerId: number): number => {
+    const territoires = currentMoveData[currentPartialMove].territories;
+
+    // N'utilise pas currentMoveData[currentPartialMove].players[playerId]?.troops pour simplifier.
+    let count = 0; 
+    for (const territoireId in territoires) {
+      if (territoires[territoireId].playerId === playerId)
+        count += territoires[territoireId].troops;
+    }
+    return count;
+  };
+
+  const territoireCount = (playerId: number): number => {
+    const territoires = currentMoveData[currentPartialMove].territories;
+    let count = 0;
+    for (const territoireId in territoires) {
+      if (territoires[territoireId].playerId === playerId) count++;
+    }
+    return count;
+  };
+
+  const Player = (player: PlayerProps | null, playerId: number) => {
+    if (!player || playerId > MAX_PLAYER_COUNT) return null;
+
+    return (
+      <View style={styles.player} key={player.name}>
+        <View style={styles.playerInfo}>
+          <View style={styles.playerInfoCol}>
+            <PersonIcon fill={"white"} style={styles.playerInfoIcon} />
+            <Text style={styles.playerInfoText}>
+              {totalPlayerTroops(playerId)}
+            </Text>
+          </View>
+
+          <View style={styles.playerInfoCol}>
+            <LocationIcon fill={"white"} style={styles.playerInfoIcon} />
+            <Text style={styles.playerInfoText}>
+              {territoireCount(playerId)}
+            </Text>
+          </View>
+        </View>
+        <View
+          style={{
+            ...styles.playerColor,
+            backgroundColor: Colors.playersBackground[playerId],
+          }}
+        />
+      </View>
+    );
+  };
+
+  const Players = () => {
+    if (
+      currentMoveData.length == 0 ||
+      currentMoveData[currentPartialMove].players.length == 0
+    )
+      return null;
+
+    return (
+      <View style={styles.players}>
+        {currentMoveData[currentPartialMove].players.map(Player)}
+      </View>
+    );
+  };
+
   const Hud = () => {
     return (
-      <View>
-        <Controls />
-        <GameState />
+      <View style={styles.hudContainer}>
+        <Players />
+        <View>
+          <Controls />
+          <GameState />
+        </View>
       </View>
     );
   };
@@ -1036,9 +1119,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     height: "100%",
   },
+  hudContainer: {
+    flexDirection: "row",
+  },
   game: {
     flex: 1,
     height: "100%",
   },
-  button: {},
+  players: {
+    justifyContent: "center",
+    gap: 2,
+  },
+  player: {
+    flexDirection: "row",
+    gap: 2,
+  },
+  playerInfo: {
+    flexDirection: "row",
+    width: 48,
+    height: 48,
+    backgroundColor: Colors.playerHudBackground,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+  },
+  playerInfoIcon: {
+    height: 16,
+  },
+  playerInfoCol: {
+    margin: 4,
+  },
+  playerInfoText: {
+    color: "white",
+  },
+  playerColor: {
+    width: 16,
+    height: 48,
+    borderRadius: 16,
+  },
 });
