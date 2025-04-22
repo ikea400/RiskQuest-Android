@@ -3,15 +3,21 @@ import {
   Text,
   Button,
   StyleSheet,
-  StyleProp,
-  ViewStyle,
   Animated as Animated2,
-  ColorValue,
+  TouchableOpacity,
 } from "react-native";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
 import { Colors } from "../config/color";
+import MenuPage from "./Menu";
 import { StatusBar } from "expo-status-bar";
 import FullScreenComponent from "../components/FullScreen";
 import axios from "axios";
@@ -549,7 +555,13 @@ const MOVE_INTERVAL = [500, 1000, 2000];
 let currentMoveSpeed = MOVE_INTERVAL[1];
 const MAX_PLAYER_COUNT = 6;
 
-const Game = ({ gameId }: { gameId: string }) => {
+const Game = ({
+  gameId,
+  returnMenu,
+}: {
+  gameId: string;
+  returnMenu: () => void;
+}) => {
   const [currentMove, _setCurrentMove] = useState(0);
   const [currentPartialMove, _setCurrentPartialMove] = useState(0);
   const [currentMoveData, _setCurrentMoveData] = useState<MoveProps[]>([]);
@@ -621,9 +633,11 @@ const Game = ({ gameId }: { gameId: string }) => {
           }
         } else {
           console.log("Failed to fetch moves fo server for unknown reason");
+          returnMenu();
         }
       } catch (error: any) {
         console.log("Failed to fetch moves fo server", error);
+        returnMenu();
       }
     };
 
@@ -1028,7 +1042,7 @@ const Game = ({ gameId }: { gameId: string }) => {
     const territoires = currentMoveData[currentPartialMove].territories;
 
     // N'utilise pas currentMoveData[currentPartialMove].players[playerId]?.troops pour simplifier.
-    let count = 0; 
+    let count = 0;
     for (const territoireId in territoires) {
       if (territoires[territoireId].playerId === playerId)
         count += territoires[territoireId].troops;
@@ -1103,6 +1117,12 @@ const Game = ({ gameId }: { gameId: string }) => {
 
   return (
     <FullScreenComponent style={styles.container}>
+      <TouchableOpacity onPress={returnMenu} style={styles.backButton}>
+        <Text style={{ color: "white", fontWeight: "bold", fontSize: 8 }}>
+          Go Back
+        </Text>
+      </TouchableOpacity>
+
       <Svg style={styles.game} viewBox="40 60 125 130">
         <Territoires />
         <Particules />
@@ -1126,6 +1146,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: "100%",
   },
+
   players: {
     justifyContent: "center",
     gap: 2,
@@ -1156,5 +1177,26 @@ const styles = StyleSheet.create({
     width: 16,
     height: 48,
     borderRadius: 16,
+  },
+  backButton: {
+    position: "absolute",
+    width: 60,
+    height: 20,
+    top: 15,
+    left: 20,
+    backgroundColor: "black",
+    opacity: 0.7,
+    padding: 10,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 1, height: 2 },
+    borderWidth: 0.5,
+    borderColor: "#0000ff",
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 999,
   },
 });
