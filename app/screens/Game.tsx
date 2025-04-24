@@ -26,6 +26,7 @@ import { deepCopy } from "../utililty/utils";
 import Animated, {
   Easing,
   useAnimatedProps,
+  useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -574,6 +575,7 @@ const Game = ({
   const [currentPartialMove, _setCurrentPartialMove] = useState(0);
   const [currentMoveData, _setCurrentMoveData] = useState<MoveProps[]>([]);
   const [currentMoveSpeedIndex, _setCurrentMoveSpeedIndex] = useState(1);
+  const [moveLoaded, setMoveLoaded] = useState(false);
   const [fontsLoaded] = useFonts({ Kanit_900Black });
   const moveInterval = useRef<NodeJS.Timeout | null>(null);
   const currentMoveRef = useRef(currentMove);
@@ -626,6 +628,7 @@ const Game = ({
         const result = await axios.get(API_ENDPOINT);
         const response = result.data;
         if (response?.success === true && Array.isArray(response?.moves)) {
+          setMoveLoaded(true);
           console.log("Fetched moves from server ", response.moves.length);
 
           const moves = response.moves;
@@ -654,6 +657,7 @@ const Game = ({
     setCurrentMove(0);
     setCurrentPartialMove(0);
     setCurrentMoveData([]);
+    setMoveLoaded(false);
 
     return () => {
       console.log("Clearing interval ", moveInterval.current);
@@ -679,7 +683,10 @@ const Game = ({
       return;
     }
 
-    const nextCurrentMove = (currentMoveRef.current + 1) % gameMoves.length;
+    const nextCurrentMove = currentMoveRef.current + 1;
+    if (nextCurrentMove + 1 >= gameMoves.length) {
+      stopPlay();
+    }
 
     const moveData = gameMoves[nextCurrentMove].moveData;
     const move: {
@@ -913,34 +920,39 @@ const Game = ({
       []
     );
 
-    const y = useSharedValue(
-      territoire.bbox.y + territoire.bbox.height * territoire.pastille.y - 3
-    );
+    const translateY = useSharedValue(0);
     const opacity = useSharedValue(1.0);
 
     const animatedProps = useAnimatedProps(() => ({
-      y: withTiming(y.value, {
-        duration: PARTICULE_DURATION,
-      }),
+      transform: [
+        {
+          translateY: withTiming(translateY.value, {
+            duration: PARTICULE_DURATION,
+          }),
+        },
+      ],
       opacity: withTiming(opacity.value, { duration: PARTICULE_DURATION }),
     }));
 
     useEffect(() => {
       opacity.value = 0;
-      y.value -= 6;
+      translateY.value = -6;
     }, []);
 
     return (
       <AnimatedSvgText
         x={territoire.bbox.x + territoire.bbox.width * territoire.pastille.x}
-        textAnchor={"middle"}
-        alignmentBaseline={"middle"}
-        fontFamily={"Kanit_900Black"}
+        y={
+          territoire.bbox.y + territoire.bbox.height * territoire.pastille.y - 3
+        }
+        animatedProps={animatedProps}
+        textAnchor="middle"
+        alignmentBaseline="middle"
+        fontFamily="Kanit_900Black"
         fontSize={4}
         strokeWidth={0.35}
-        stroke={"black"}
+        stroke="black"
         fill={Colors.playersBackground[particule.playerId]}
-        animatedProps={animatedProps}
         key={`particule-${territoire.id}`}
       >
         {formatter.format(particule.count)}
@@ -1020,12 +1032,12 @@ const Game = ({
   const Controls = () => {
     return (
       <View>
-        <Button title="Exit" />
         <Button
           title={"Next move"}
           onPress={() => {
             if (gameMoves.length) nextMove();
           }}
+          disabled={currentMoveRef.current + 1 >= gameMoves.length}
         />
         <Button title="Play" onPress={startPlay} />
         <Button title="Pause" onPress={stopPlay} />
