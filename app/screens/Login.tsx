@@ -192,19 +192,13 @@ const LoginPage = ({
   setRegister: (value: boolean) => void;
 }) => {
   const { onLogin, onGuest } = useAuth();
+  const [errors, setErrors] = useState<string[]>([]);
 
-  const getNewErrors = (ignoreEmpty?: boolean) => [
-    ...(ignoreEmpty && password.length === 0 ? [] : verifyPassword(password)),
-    ...(ignoreEmpty && username.length === 0 ? [] : verifyUsername(username)),
-  ];
-
-  const [errors, setErrors] = useState<string[]>(getNewErrors(true));
-  const updateErrors = () => {
-    const newErrors = getNewErrors();
-    // Avoid rerender when no errors change.
-    if (!arrayEquals(newErrors, errors)) {
-      setErrors(newErrors);
-    }
+  const getNewErrors = () => {
+    const errors: string[] = [];
+    if (password.length === 0) errors.push("Please enter a password");
+    if (username.length === 0) errors.push("Please enter a username");
+    return errors;
   };
 
   return (
@@ -231,7 +225,6 @@ const LoginPage = ({
           value={username}
           onChangeText={(text) => setUsername(text)}
           autoComplete={"username"}
-          onEndEditing={updateErrors}
         />
         <TextInput
           style={styles.input}
@@ -240,7 +233,6 @@ const LoginPage = ({
           value={password}
           onChangeText={(text) => setPassword(text)}
           autoComplete={"current-password"}
-          onEndEditing={updateErrors}
         />
         <Button
           color={Colors.mainButton}

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Animated as Animated2,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import React, {
   createContext,
@@ -32,16 +33,18 @@ import { transform } from "@babel/core";
 import { Kanit_900Black, useFonts } from "@expo-google-fonts/kanit";
 import Slider from "@react-native-community/slider";
 import { LocationIcon, PersonIcon } from "../components/Icons";
+import OutlinedText from "../components/OutlineText";
 
 const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
 const AnimatedSvgText2 = Animated2.createAnimatedComponent(SvgText);
 
-function randomInteger(min: number, max: number): number {
-  let randomNumber = Math.random();
-
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(randomNumber * (max - min + 1)) + min;
+enum EPhases {
+  NONE = "NONE",
+  PICKING = "PICKING",
+  PLACING = "PLACING",
+  DRAFT = "DRAFT",
+  ATTACK = "ATTACK",
+  FORTIFY = "FORTIFY",
 }
 
 interface bboxPros {
@@ -71,12 +74,15 @@ interface PlayerProps {
   bot: any;
   troops: number;
   dead: boolean | undefined;
+  img: string;
 }
 
 interface MoveProps {
   territories: any;
   players: (PlayerProps | null)[];
   particules: ParticuleProps[];
+  playerId: number;
+  phase: EPhases;
 }
 
 interface DraftProps {
@@ -554,6 +560,8 @@ const PARTICULE_DURATION = 1000;
 const MOVE_INTERVAL = [500, 1000, 2000];
 let currentMoveSpeed = MOVE_INTERVAL[1];
 const MAX_PLAYER_COUNT = 6;
+const DEFAULT_PROFILE_URI =
+  "https://upload.wikimedia.org/wikipedia/commons/2/2c/Default_pfp.svg";
 
 const Game = ({
   gameId,
@@ -693,6 +701,8 @@ const Game = ({
           territories: deepCopy(lastMoveData.territories),
           players: moveData.players,
           particules: [],
+          playerId: move.player,
+          phase: EPhases.ATTACK,
         };
 
         if (
@@ -765,6 +775,8 @@ const Game = ({
           territories: deepCopy(lastMoveData.territories),
           players: moveData.players,
           particules: [],
+          playerId: move.player,
+          phase: EPhases.DRAFT,
         };
 
         // Ajouter les troupes
@@ -782,10 +794,13 @@ const Game = ({
         stepMoves.push(stepMove);
       }
     } else {
+      // Assuming fortify for now
       stepMoves.push({
         territories: moveData.territories,
         players: moveData.players,
         particules: [],
+        playerId: move.player,
+        phase: EPhases.FORTIFY,
       });
     }
 
@@ -1007,10 +1022,7 @@ const Game = ({
       <View>
         <Button title="Exit" />
         <Button
-          title={`Next ${currentMove}/ ${
-            gameMoves.length === 0 ? "None" : gameMoves.length - 1
-          }`}
-          color="#841584"
+          title={"Next move"}
           onPress={() => {
             if (gameMoves.length) nextMove();
           }}
@@ -1018,8 +1030,8 @@ const Game = ({
         <Button title="Play" onPress={startPlay} />
         <Button title="Pause" onPress={stopPlay} />
         <Button title="Reset" onPress={reset} />
-        <View style={{ backgroundColor: "#841584" }}>
-          <Text>Speed</Text>
+        <View style={{ backgroundColor: "#2296f3" }}>
+          <Text style={{ color: "white" }}> Speed</Text>
           <Slider
             minimumValue={0}
             maximumValue={MOVE_INTERVAL.length - 1}
@@ -1034,8 +1046,69 @@ const Game = ({
     );
   };
 
+  const getPlayerImageUri = (player: PlayerProps): string => {
+    const { img } = player;
+
+    if (img.startsWith("http")) {
+      return img;
+    }
+
+    if (process.env.EXPO_PUBLIC_URL) {
+      if (img.startsWith("./")) {
+        return process.env.EXPO_PUBLIC_URL + img.substring(1);
+      }
+
+      if (img.startsWith("/")) {
+        return process.env.EXPO_PUBLIC_URL + img;
+      }
+    }
+
+    return DEFAULT_PROFILE_URI;
+  };
+
   const GameState = () => {
-    return null;
+    if (currentMoveData.length == 0) return null;
+
+    const moveData = currentMoveData[currentPartialMove];
+    const { players, playerId } = currentMoveData[currentPartialMove];
+    const currentPlayer = players[currentMoveData[currentPartialMove].playerId];
+    if (!players || !currentPlayer) return null;
+
+    return (
+      <View
+        style={{
+          ...styles.gameState,
+          backgroundColor: Colors.playersBackground[playerId],
+        }}
+      >
+        <Image
+          style={styles.profileImage}
+          source={{
+            uri: getPlayerImageUri(currentPlayer),
+          }}
+        />
+        <OutlinedText
+          height={16}
+          fontSize={16}
+          fontFamily="Kanit_900Black"
+          fill={"white"}
+          stroke={"black"}
+          strokeWidth={1.5}
+        >
+          {currentPlayer.name}
+        </OutlinedText>
+        <OutlinedText
+          height={16}
+          fontSize={16}
+          fontFamily="Kanit_900Black"
+          fill={"white"}
+          stroke={"black"}
+          strokeWidth={1.5}
+        >
+          {moveData.phase}
+        </OutlinedText>
+      </View>
+    );
   };
 
   const totalPlayerTroops = (playerId: number): number => {
@@ -1118,9 +1191,7 @@ const Game = ({
   return (
     <FullScreenComponent style={styles.container}>
       <TouchableOpacity onPress={returnMenu} style={styles.backButton}>
-        <Text style={{ color: "white", fontWeight: "bold", fontSize: 8 }}>
-          Go Back
-        </Text>
+        <Text style={styles.backButtonText}>Go Back</Text>
       </TouchableOpacity>
 
       <Svg style={styles.game} viewBox="40 60 125 130">
@@ -1141,6 +1212,7 @@ const styles = StyleSheet.create({
   },
   hudContainer: {
     flexDirection: "row",
+    gap: 2,
   },
   game: {
     flex: 1,
@@ -1180,16 +1252,15 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: "absolute",
-    width: 60,
-    height: 20,
+    width: 70,
+    height: 25,
     top: 15,
     left: 20,
-    backgroundColor: "black",
-    opacity: 0.7,
-    padding: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     borderRadius: 8,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 1, height: 2 },
     borderWidth: 0.5,
@@ -1198,5 +1269,26 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
     zIndex: 999,
+  },
+  backButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+    textAlign: "center",
+    opacity: 1,
+  },
+  profileImage: {
+    width: 50,
+    height: 50,
+  },
+  gameState: {
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    gap: 10,
+  },
+  gameStateText: {
+    color: "white",
+    fontFamily: "Kanit_900Black",
   },
 });
