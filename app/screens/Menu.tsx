@@ -24,8 +24,10 @@ type MenuScreenNavigationProp = NativeStackNavigationProp<NavigationProps>;
 
 const MenuPage = ({
   setOpenGameId,
+  setPlayerCount,
 }: {
   setOpenGameId: (value: string) => void;
+  setPlayerCount: (value: number) => void;
 }) => {
   const navigation = useNavigation<MenuScreenNavigationProp>();
 
@@ -95,7 +97,10 @@ const MenuPage = ({
             <TouchableOpacity
               key={index}
               style={styles.itemContainer}
-              onPress={() => setOpenGameId(game.id)}
+              onPress={() => {
+                setOpenGameId(game.id);
+                setPlayerCount(parseInt(game.player_count));
+              }}
             >
               <View style={styles.itemContentRow}>
                 <Text style={styles.gameIdText}>Game #{game.id}</Text>
@@ -144,6 +149,7 @@ const MenuPage = ({
 
 const Menu = () => {
   const [openGameId, setOpenGameId] = useState<string | undefined>();
+  const [playerCount, setPlayerCount] = useState<number>(0);
   console.log("Menu: openGameId", openGameId);
   return openGameId ? (
     <Game
@@ -153,7 +159,7 @@ const Menu = () => {
       }}
     />
   ) : (
-    <MenuPage setOpenGameId={setOpenGameId} />
+    <MenuPage setOpenGameId={setOpenGameId} setPlayerCount={setPlayerCount} />
   );
 };
 

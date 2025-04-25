@@ -76,6 +76,7 @@ interface PlayerProps {
   troops: number;
   dead: boolean | undefined;
   img: string;
+  color: number | undefined;
 }
 
 interface MoveProps {
@@ -564,6 +565,7 @@ const MAX_PLAYER_COUNT = 6;
 const DEFAULT_PROFILE_URI =
   "https://upload.wikimedia.org/wikipedia/commons/2/2c/Default_pfp.svg";
 const BACKGROUND_IMG = `${process.env.EXPO_PUBLIC_URL}/assets/images/background.jpg`;
+let playerCount = 0;
 
 const Game = ({
   gameId,
@@ -631,7 +633,8 @@ const Game = ({
         if (response?.success === true && Array.isArray(response?.moves)) {
           setMoveLoaded(true);
           console.log("Fetched moves from server ", response.moves.length);
-
+          console.log("test2", response.player_count);
+          playerCount = response.player_count;
           const moves = response.moves;
           for (const move of moves) {
             move.moveData = JSON.parse(move.moveData);
@@ -689,7 +692,22 @@ const Game = ({
       stopPlay();
     }
 
+    const assurePlayerColor = (players: (PlayerProps | null)[]) => {
+      for (let playerId = 0; playerId < players.length; playerId++) {
+        if (playerId >= MAX_PLAYER_COUNT) return;
+        const player = players[playerId];
+        if (player == null) continue;
+        player.color ??= playerId;
+      }
+    };
+
     const moveData = gameMoves[nextCurrentMove].moveData;
+    if (moveData.players) {
+      console.log();
+      if (moveData.players.length >= playerCount)
+        moveData.players.length = playerCount + 1;
+      assurePlayerColor(moveData.players);
+    }
     const move: {
       attacks: any[];
       draft: DraftProps[];
@@ -855,8 +873,11 @@ const Game = ({
             Colors.playersTerritoire[
               currentMoveData.length == 0
                 ? 0
-                : currentMoveData[currentPartialMove].territories[territoire.id]
-                    .playerId
+                : currentMoveData[currentPartialMove].players[
+                    currentMoveData[currentPartialMove].territories[
+                      territoire.id
+                    ].playerId
+                  ]?.color || 0
             ]
           }
           strokeWidth={0.25}
@@ -872,8 +893,11 @@ const Game = ({
             Colors.playersBackground[
               currentMoveData.length == 0
                 ? 0
-                : currentMoveData[currentPartialMove].territories[territoire.id]
-                    .playerId
+                : currentMoveData[currentPartialMove].players[
+                    currentMoveData[currentPartialMove].territories[
+                      territoire.id
+                    ].playerId
+                  ]?.color || 0
             ]
           }
           key={`pastille-${territoire.id}`}
@@ -955,7 +979,14 @@ const Game = ({
         fontSize={4}
         strokeWidth={0.35}
         stroke="black"
-        fill={Colors.playersBackground[particule.playerId]}
+        fill={
+          Colors.playersBackground[
+            currentMoveData.length == 0
+              ? 0
+              : currentMoveData[currentPartialMove].players[particule.playerId]
+                  ?.color || 0
+          ]
+        }
         key={`particule-${territoire.id}`}
       >
         {formatter.format(particule.count)}
@@ -1019,7 +1050,12 @@ const Game = ({
         fontSize={4}
         strokeWidth={0.35}
         stroke="black"
-        fill={Colors.playersBackground[particule.playerId]}
+        fill={
+          Colors.playersBackground[
+            currentMoveData[currentPartialMove].players[particule.playerId]
+              ?.color || 0
+          ]
+        }
         opacity={opacity}
         key={`particule-${territoire.id}`}
       >
@@ -1089,11 +1125,14 @@ const Game = ({
     const currentPlayer = players[currentMoveData[currentPartialMove].playerId];
     if (!players || !currentPlayer) return null;
 
+    const color =
+      currentMoveData[currentPartialMove].players[playerId]?.color || 0;
+
     return (
       <View
         style={{
           ...styles.gameState,
-          backgroundColor: Colors.playersBackground[playerId],
+          backgroundColor: Colors.playersBackground[color],
         }}
       >
         <Image
@@ -1149,6 +1188,8 @@ const Game = ({
 
   const Player = (player: PlayerProps | null, playerId: number) => {
     if (!player || playerId > MAX_PLAYER_COUNT) return null;
+    const color =
+      currentMoveData[currentPartialMove].players[playerId]?.color || 0;
 
     return (
       <View style={styles.player} key={player.name}>
@@ -1170,7 +1211,7 @@ const Game = ({
         <View
           style={{
             ...styles.playerColor,
-            backgroundColor: Colors.playersBackground[playerId],
+            backgroundColor: Colors.playersBackground[color],
           }}
         />
       </View>
