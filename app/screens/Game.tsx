@@ -563,6 +563,7 @@ let currentMoveSpeed = MOVE_INTERVAL[1];
 const MAX_PLAYER_COUNT = 6;
 const DEFAULT_PROFILE_URI =
   "https://upload.wikimedia.org/wikipedia/commons/2/2c/Default_pfp.svg";
+const BACKGROUND_IMG = `${process.env.EXPO_PUBLIC_URL}/assets/images/background.jpg`;
 
 const Game = ({
   gameId,
@@ -858,6 +859,8 @@ const Game = ({
                     .playerId
             ]
           }
+          strokeWidth={0.25}
+          stroke={"#444"}
         />
         <Circle
           cx={territoire.bbox.x + territoire.bbox.width * territoire.pastille.x}
@@ -1200,8 +1203,21 @@ const Game = ({
     );
   };
 
+  const Background = () => {
+    console.log(BACKGROUND_IMG);
+    return (
+      <Image
+        style={styles.background}
+        source={{
+          uri: BACKGROUND_IMG,
+        }}
+      />
+    );
+  };
+
   return (
     <FullScreenComponent style={styles.container}>
+      <Background />
       <TouchableOpacity onPress={returnMenu} style={styles.backButton}>
         <Text style={styles.backButtonText}>Go Back</Text>
       </TouchableOpacity>
@@ -1302,5 +1318,12 @@ const styles = StyleSheet.create({
   gameStateText: {
     color: "white",
     fontFamily: "Kanit_900Black",
+  },
+  background: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: "100%",
+    width: "100%",
   },
 });
